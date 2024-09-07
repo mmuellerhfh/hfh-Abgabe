@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head> 
+    <meta charset="UTF-8">
+    <title> Projektverwaltung</title>
+    <link href="/styles.css" rel="stylesheet">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: "Montserrat", sans-serif;
+            background-color: #E5DECA;
+        }
+
+    </style>
+</head> 
+<body>
+<?php
+/** Erstellen einer Datenbankverbindung */
+$servername = "localhost";
+$user = "root";
+$pw = "";
+$dbname = "projekte";
+
+$con = new mysqli($servername,$user,$pw,$dbname);
+
+if ($con->connect_error) {
+    die("Verbindung konnte nicht aufgebaut werden" . $con->connect_error);
+}
+/** echo "connected"; dieser Befehl mit in Kommentar einfügen, dann verschwindet das connected auf Website*/
+/** Ende Erstellung der Datenbankverbindung*/
+?>
+<!-- Text oberhalb der Tabellen -->
+
+        <h1> Projektmanagement Tool</h1>
+    <h2> Dieses Tool hilt uns, unsere Projekte übersichtlich zu managen. </h2>
+
+<!-- Ende Text oberhalb der Tabellen -->
+
+
+
+<!-- Text Eingabe der Daten -->
+<form action="index.php" method="post">
+
+    <label for="name">Name des Projekts:</label>
+    <input type="text" id="name" name="name" required><br>
+
+    <label for="startdatum">Startdatum:</label>
+    <input type="date" id="startdatum" name="startdatum" required><br>
+
+    <label for="enddatum">Enddatum:</label>
+    <input type="date" id="enddatum" name="enddatum" required><br>
+
+    <label for="beschreibung">Beschreibung:</label>
+    <textarea id="beschreibung" name="beschreibung" required></textarea><br>
+
+    <label for="verantwortlich">Verantwortliche Person:</label>
+    <input type="text" id="verantwortlich" name="verantwortlich" required><br>
+
+    <input type="submit" value="Speichern">
+</form>
+
+    <!-- Ende: Text Eingabe der Daten -->
+<?php
+
+// Start PHP Befehle: Daten aus PHP Skript verarbeiten 
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $name = $_POST['name'];
+    $startdatum = $_POST['startdatum'];
+    $enddatum = $_POST['enddatum'];
+    $beschreibung = $_POST['beschreibung'];
+    $verantwortlich = $_POST['verantwortlich'];
+
+    // Ende PHP Befehle: Daten aus PHP Skript verarbeiten 
+
+    // Prüfen, ob es sich um ein Update handelt
+    if (isset($_POST['update']) && $_POST['update'] == '1') {
+        $id = $_POST['id'];
+        $sql = "UPDATE projekte 
+                SET name='$name', startdatum='$startdatum', enddatum='$enddatum', beschreibung='$beschreibung', verantwortlich='$verantwortlich'
+                WHERE id='$id'";
+
+        if ($con->query($sql) === TRUE) {
+            echo "Projekt erfolgreich aktualisiert!";
+        } else {
+            echo "Fehler beim Aktualisieren: " . $sql . "<br>" . $con->error;
+        }
+    } else {
+        // Neuer Datensatz hinzufügen
+        $sql = "INSERT INTO projekte (id, name, startdatum, enddatum, beschreibung, verantwortlich)
+                VALUES (UUID(), '$name', '$startdatum', '$enddatum', '$beschreibung', '$verantwortlich')";
+
+        if ($con->query($sql) === TRUE) {
+            echo "Neues Projekt erfolgreich erstellt!";
+        } else {
+            echo "Fehler: " . $sql . "<br>" . $con->error;
+        }
+    }
+    exit;
+
+}
+
+// SQL-Abfrage zur Auswahl aller Daten aus der Tabelle 'projekte'
+$sql = "SELECT * FROM projekte";
+$result = $con->query($sql);
+
+if ($result->num_rows > 0) {
+    echo "<table border='1'>";
+    echo "<tr><th>Name</th><th>Beschreibung</th><th>Startdatum</th><th>Enddatum</th><th>Verantwortlich</th></tr>";
+    while ($row = $result->fetch_assoc()) {
+        echo "<tr>";
+        echo "<td>" . $row["name"] . "</td>";
+        echo "<td>" . $row["beschreibung"] . "</td>";
+        echo "<td>" . $row["startdatum"] . "</td>";
+        echo "<td>" . $row["enddatum"] . "</td>";
+        echo "<td>" . $row["verantwortlich"] . "</td>";
+        echo "</tr>";
+    }
+    echo "</table>";
+} else {
+    echo "Keine Ergebnisse gefunden.";
+}
+
+$sql_count = "SELECT COUNT(*) AS anzahl FROM projekte";
+$count_res = $con->query($sql_count);
+$count_row = $count_res->fetch_assoc();
+echo "<p>Gesamtanzahl der Projekte: " . $count_row['anzahl'] . "</p>";
+
+?>
+
+<!-- Ende: PHP Befehle für die Datenbank Update, neuer Datensatz, Alle Daten anzeigen -->
+<h2>Projekte bearbeiten</h2>
+<button onclick="togglePastProjects()">Projekte mit abgelaufenem Enddatum ein-/ausblenden</button>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Startdatum</th>
+        <th>Enddatum</th>
+        <th>Beschreibung</th>
+        <th>Verantwortlich</th>
+        <th>Änderung speichern</th>
+    </tr>
+    <?php
+    /** SQL-Abfrage für die Tabelle */
+    $sql="SELECT * FROM projekte";
+    $res = $con->query($sql);
+    if ($res->num_rows > 0) {
+        while ($row = $res->fetch_assoc()) {
+            $isPast = (strtotime($row['enddatum']) < time()) ? 'past' : '';
+            echo "<tr class='$isPast'>";
+            echo "<form action='index.php' method='post'>";
+            echo "<td><input type='text' name='name' value='" . $row['name'] . "'></td>";
+            echo "<td><input type='date' name='startdatum' value='" . $row['startdatum'] . "'></td>";
+            echo "<td><input type='date' name='enddatum' value='" . $row['enddatum'] . "'></td>";
+            echo "<td><input type='text' name='beschreibung' value='" . $row['beschreibung'] . "'></td>";
+            echo "<td><input type='text' name='verantwortlich' value='" . $row['verantwortlich'] . "'></td>";
+            echo "<td>";
+            echo "<input type='hidden' name='id' value='" . $row['id'] . "'>";
+            echo "<input type='hidden' name='update' value='1'>";
+            echo "<input type='submit' value='Aktualisieren'>";
+            echo "</td>";
+            echo "</form>";
+            echo "</tr>";
+        }
+    } else {
+        echo "<tr><td colspan='6'>Keine Projekte gefunden</td></tr>";
+    }
+    ?>
+</table>
+<!-- Ende: Text Eingabe der Daten -->
+
+<script>
+function togglePastProjects() {
+    var pastProjects = document.querySelectorAll('.past');
+    pastProjects.forEach(function(project) {
+        project.classList.toggle('hidden');
+    });
+}
+</script>
+
+<?php
+// Verbindung schließen
+$con->close();
+?>
+
+
+
+</body>
+
+</html>
+
+<footer>
+Copyright by Meike Müller 
+</footer>
